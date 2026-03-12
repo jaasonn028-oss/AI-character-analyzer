@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Character Analyzer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      min-height: 100vh;
+      color: #e0e0e0;
+      padding: 2rem 1rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(90deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      color: #9ca3af;
+      margin-top: 0.5rem;
+      font-size: 1.05rem;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 2rem;
+      backdrop-filter: blur(10px);
+    }
+
+    textarea {
+      width: 100%;
+      height: 180px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px;
+      color: #e0e0e0;
+      font-size: 0.95rem;
+      padding: 1rem;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus { border-color: #a78bfa; }
+
+    .char-count {
+      text-align: right;
+      font-size: 0.8rem;
+      color: #6b7280;
+      margin-top: 0.4rem;
+    }
+
+    .char-count.over { color: #f87171; }
+
+    button#analyze-btn {
+      display: block;
+      width: 100%;
+      margin-top: 1.2rem;
+      padding: 0.85rem;
+      background: linear-gradient(90deg, #7c3aed, #2563eb);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    button#analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .demo-banner {
+      background: rgba(234, 179, 8, 0.15);
+      border: 1px solid rgba(234, 179, 8, 0.4);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      font-size: 0.88rem;
+      color: #fde68a;
+      margin-top: 1.2rem;
+    }
+
+    .error-box {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+      color: #fca5a5;
+      margin-top: 1.2rem;
+    }
+
+    #results {
+      margin-top: 2rem;
+      display: none;
+    }
+
+    #results h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(90deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+    }
+
+    @media (max-width: 600px) { .result-grid { grid-template-columns: 1fr; } }
+
+    .result-item {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 1.2rem;
+    }
+
+    .result-item.full-width { grid-column: 1 / -1; }
+
+    .result-item h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #a78bfa;
+      margin-bottom: 0.6rem;
+    }
+
+    .result-item p { font-size: 0.95rem; line-height: 1.6; color: #d1d5db; }
+
+    .badge-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.2rem; }
+
+    .badge {
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+
+    .badge-trait  { background: rgba(124, 58, 237, 0.25); color: #c4b5fd; border: 1px solid rgba(124,58,237,0.4); }
+    .badge-strength { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.4); }
+    .badge-weakness { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); }
+
+    .archetype-tag {
+      display: inline-block;
+      background: linear-gradient(135deg, rgba(124,58,237,0.3), rgba(37,99,235,0.3));
+      border: 1px solid rgba(124,58,237,0.5);
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #e0e7ff;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 0.5rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔮 AI Character Analyzer</h1>
+      <p>Paste a character description or passage to reveal their personality profile.</p>
+    </header>
+
+    <div class="card">
+      <textarea id="text-input"
+        placeholder="Describe a character or paste a passage about them. For example: 'Hermione Granger is a brilliant and hardworking witch who values knowledge above all else. She is fiercely loyal to her friends, but can sometimes be overly rigid and rule-bound...'"
+        maxlength="5000"></textarea>
+      <div class="char-count" id="char-count">0 / 5000</div>
+
+      <div id="error-box" class="error-box" style="display:none;"></div>
+
+      <button id="analyze-btn">Analyze Character</button>
+    </div>
+
+    <div id="results">
+      <div class="card">
+        <h2 id="results-title">Character Analysis</h2>
+        <div id="demo-banner" class="demo-banner" style="display:none;">
+          ⚠️ Running in <strong>demo mode</strong> (no OpenAI API key configured).
+          Set <code>OPENAI_API_KEY</code> in your <code>.env</code> file for full AI-powered analysis.
+        </div>
+
+        <div class="result-grid" style="margin-top:1.2rem;">
+          <div class="result-item full-width">
+            <h3>Summary</h3>
+            <p id="r-summary"></p>
+          </div>
+          <div class="result-item">
+            <h3>Archetype</h3>
+            <span class="archetype-tag" id="r-archetype"></span>
+          </div>
+          <div class="result-item">
+            <h3>MBTI Type</h3>
+            <p id="r-mbti"></p>
+          </div>
+          <div class="result-item full-width">
+            <h3>Core Motivation</h3>
+            <p id="r-motivation"></p>
+          </div>
+          <div class="result-item">
+            <h3>Personality Traits</h3>
+            <div class="badge-list" id="r-traits"></div>
+          </div>
+          <div class="result-item">
+            <h3>Strengths</h3>
+            <div class="badge-list" id="r-strengths"></div>
+          </div>
+          <div class="result-item full-width">
+            <h3>Weaknesses</h3>
+            <div class="badge-list" id="r-weaknesses"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const textarea = document.getElementById('text-input');
+    const charCount = document.getElementById('char-count');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const errorBox = document.getElementById('error-box');
+    const resultsSection = document.getElementById('results');
+    const demoBanner = document.getElementById('demo-banner');
+
+    textarea.addEventListener('input', () => {
+      const len = textarea.value.length;
+      charCount.textContent = `${len} / 5000`;
+      charCount.classList.toggle('over', len > 5000);
+    });
+
+    analyzeBtn.addEventListener('click', async () => {
+      const text = textarea.value.trim();
+      errorBox.style.display = 'none';
+      resultsSection.style.display = 'none';
+
+      if (!text) {
+        showError('Please enter some character text before analyzing.');
+        return;
+      }
+
+      analyzeBtn.disabled = true;
+      analyzeBtn.innerHTML = '<span class="spinner"></span>Analyzing…';
+
+      try {
+        const response = await fetch('/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+          showError(data.error || 'An unexpected error occurred.');
+          return;
+        }
+
+        renderResults(data);
+      } catch (err) {
+        showError('Network error. Please try again.');
+      } finally {
+        analyzeBtn.disabled = false;
+        analyzeBtn.textContent = 'Analyze Character';
+      }
+    });
+
+    function showError(msg) {
+      errorBox.textContent = msg;
+      errorBox.style.display = 'block';
+    }
+
+    function renderResults(data) {
+      const name = data.name && data.name !== 'Unknown' ? data.name : null;
+      document.getElementById('results-title').textContent =
+        name ? `Character Analysis: ${name}` : 'Character Analysis';
+
+      document.getElementById('r-summary').textContent = data.summary || '';
+      document.getElementById('r-archetype').textContent = data.archetype || '';
+      document.getElementById('r-mbti').textContent = data.mbti || '';
+      document.getElementById('r-motivation').textContent = data.motivation || '';
+
+      renderBadges('r-traits', data.traits || [], 'badge-trait');
+      renderBadges('r-strengths', data.strengths || [], 'badge-strength');
+      renderBadges('r-weaknesses', data.weaknesses || [], 'badge-weakness');
+
+      demoBanner.style.display = data.demo_mode ? 'block' : 'none';
+      resultsSection.style.display = 'block';
+      resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function renderBadges(containerId, items, cssClass) {
+      const el = document.getElementById(containerId);
+      el.innerHTML = '';
+      items.forEach(item => {
+        const span = document.createElement('span');
+        span.className = `badge ${cssClass}`;
+        span.textContent = item;
+        el.appendChild(span);
+      });
+    }
+  </script>
+</body>
+</html>
